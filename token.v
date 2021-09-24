@@ -1,11 +1,15 @@
 module json112
 
-struct JsonToken{
-	Kind JsonKind
-
+struct Token{
+	//token种类
+	kind Kind
+	//token位置
+	pos int
+	//token字符长度
+	len int
 }
 
-enum JsonKind{
+enum Kind{
 	unknown
 	eof
 	null
@@ -22,7 +26,7 @@ enum JsonKind{
 }
 
 struct NodeToken{
-	Kind NodeKind
+	kind NodeKind
 
 }
 

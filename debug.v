@@ -1,6 +1,6 @@
 module json112
 
-[if jsondebug]
+[if debug]
 fn log<T>(msg T){
 	println(msg)
 }
