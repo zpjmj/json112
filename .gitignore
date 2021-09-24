@@ -1,0 +1,9 @@
+# Binaries for programs and plugins
+main
+json112
+*.exe
+*.exe~
+*.so
+*.dylib
+*.dll
+json112.code-workspace
