@@ -7,9 +7,9 @@ const (
 
 struct Scanner{
 	//json原始字符
-	text string
+	text string [required]
 	//是否扫描注释
-	scan_comment bool
+	scan_comment bool [required]
 mut:
 	//当前扫描位置
 	pos int
@@ -17,22 +17,38 @@ mut:
 	all_tokens []Token
 	//all_tokens Array的索引
 	tidx int
+	//获取unicode码点
+	get_unicodepoint fn(string,int)?Unicode
 }	
 
-fn new_scanner(text string,scan_comment bool) &Scanner{
+fn new_scanner(text string,scan_comment bool,encodeing string)? &Scanner{
 	mut scanner := &Scanner{
 		text:text
 		scan_comment:scan_comment
 	}
+
+	match encodeing{
+		'utf8'{
+			scanner.get_unicodepoint = utf8str_to_unicodepoint
+		}
+		'utf16'{
+			scanner.get_unicodepoint = utf16str_to_unicodepoint
+		}
+		else{
+			scanner.get_unicodepoint = utf8str_to_unicodepoint
+		}
+	}
+
+
 	//初始化
-	scanner.init_scanner()
+	scanner.init_scanner()?
 	return scanner
 }
 
 //初始化扫描器 缓存所有token
-fn (mut s Scanner) init_scanner() {
+fn (mut s Scanner) init_scanner()? {
 	for{
-		tok := s.text_scan()
+		tok := s.text_scan()?
 		s.all_tokens << tok
 
 		if tok.kind == .eof{
@@ -55,11 +71,10 @@ fn (mut s Scanner) scan() Token{
 	return tok
 }
 
-fn (mut s Scanner) text_scan() Token{
+fn (mut s Scanner) text_scan()? Token{
 	mut start := 0
 	mut len := 0
 	mut str := ""
-	mut str_end_flg := false 
 
 	for{
 		s.skip_ws()
@@ -157,48 +172,48 @@ fn (mut s Scanner) text_scan() Token{
 			}
 
 			if error_flg {
-				return s.new_token(.unknown,start,len)
+				return s.new_token(.unknown,start,len,0)
 			}
 
-			return s.new_token(.number,start,len)
+			return s.new_token(.number,start,len,0)
 		}
 
 		match c {
 			`"` {
 				start = s.pos
-				len,str_end_flg = s.string_scan()
-				str = s.text[start..start + len]
-				return s.new_token(.string,start,len)
+				len_,converted_utf8_byte := s.string_scan()?
+				
+				return s.new_token(.string,start,len_,converted_utf8_byte)
 			}
 			`:` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.colon,start,1)
+				return s.new_token(.colon,start,1,0)
 			}
 			`,` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.comma,start,1)
+				return s.new_token(.comma,start,1,0)
 			}
 			`{` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.begin_objec,start,1)
+				return s.new_token(.begin_objec,start,1,0)
 			}
 			`}` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.end_object,start,1)
+				return s.new_token(.end_object,start,1,0)
 			}
 			`[` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.begin_array,start,1)
+				return s.new_token(.begin_array,start,1,0)
 			}
 			`]` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.end_array,start,1)
+				return s.new_token(.end_array,start,1,0)
 			}
 			`n`{
 				start = s.pos
@@ -206,9 +221,9 @@ fn (mut s Scanner) text_scan() Token{
 				str = s.text[start..start + len]
 
 				if str == 'null' {
-					return s.new_token(.null,start,len)		
+					return s.new_token(.null,start,len,0)		
 				}else{
-					return s.new_token(.unknown,start,len)	
+					return s.new_token(.unknown,start,len,0)	
 				}
 			}
 			`t`,`f` {
@@ -216,28 +231,48 @@ fn (mut s Scanner) text_scan() Token{
 				len = s.continue_scan()
 				str = s.text[start..start + len]
 
-				if str in ['true','false']{
-					return s.new_token(.boolean,start,len)		
+				if str == 'true'{
+					return s.new_token(.boolean,start,len,true)	
+				}else if str == 'false'{
+					return s.new_token(.boolean,start,len,false)	
 				}else{
-					return s.new_token(.unknown,start,len)	
+					return s.new_token(.unknown,start,len,0)	
 				}
 			}
 			else {
 				start = s.pos
 				len = s.continue_scan()
-				return s.new_token(.unknown,start,len)
+				return s.new_token(.unknown,start,len,0)
 			}
 		}
 	}
 
-	return s.new_token(.eof,s.pos,0)
+	return s.new_token(.eof,s.pos,0,0)
 }
 
-fn (mut s Scanner) new_token(kind Kind,pos int,len int) Token{
+fn (mut s Scanner) new_token<T>(kind Kind,pos int,len int,val T) Token{
+	mut converted_value := ConvertedValue{}
+
+	$if T is []byte{
+		converted_value.str_val = val
+	}$else $if T is bool{
+		converted_value.bool_val = val
+	}$else $if T is i64{
+		converted_value.i64_val = val		
+	}$else $if T is f64{
+		converted_value.f64_val = val		
+	}$else $if T is int{
+		converted_value.unknown_val = val	
+	}$else{
+		converted_value.null_val = val
+	}
+
 	return Token{
 		kind:kind
 		pos:pos
 		len:len
+		typ:'zzz'
+		val:converted_value
 	}
 }
 
@@ -278,16 +313,17 @@ fn (mut s Scanner) continue_scan() int{
 	return last_pos - start_pos
 }
 
-fn (mut s Scanner) string_scan() (int,bool){
+fn (mut s Scanner) string_scan()? (int,[]byte){
 	mut escape_flag := false
 	start_pos := s.pos
 	s.pos++
 	
-	mut other_byte := []byte{}
+	mut converted_byte := []byte{}
+	converted_byte << `"`
 
 	for{
 		if s.pos >= s.text.len{
-			return s.pos - start_pos,false
+			return error('Expect a quote to close the string.')
 		}
 
 		c := s.text[s.pos]
@@ -299,15 +335,114 @@ fn (mut s Scanner) string_scan() (int,bool){
 		}
 
 		if escape_flag {
+			match c{
+				`"`{
+					converted_byte << `"`
+				}
+				`\\`{
+					converted_byte << `\\`
+				}
+				`/`{
+					converted_byte << `/`
+				}
+				`b`{
+					converted_byte << `\b`
+				}
+				`f`{
+					converted_byte << `\f`
+				}
+				`n`{
+					converted_byte << `\n`
+				}
+				`r`{
+					converted_byte << `\r`
+				}
+				`t`{
+					converted_byte << `\t`
+				}
+				`u`{
+					if (s.pos + 5) >= s.text.len {
+						return error('Expect the character \\uXXXX.')
+					}
 
+					utf16_str:=s.text[s.pos+1..s.pos+5]
+					for i in utf16_str{
+						if !i.is_hex_digit(){
+							error('The hex character is expected after the \\u character.')
+						}
+					}
+					s.pos+=5
+
+					mut utf16_codepoint:=('0x' + utf16_str).u32()
+
+					if utf16_codepoint < 0xD800 && utf16_codepoint > 0xDFFF {
+						utf8byte := unicodepoint_encode_to_utf8byte(utf16_codepoint)?
+						for i in utf8byte{
+							converted_byte << i
+						}
+						s.pos--
+					}else if utf16_codepoint > 0xD7FF && utf16_codepoint < 0xDC00{
+						if (s.pos + 6) >= s.text.len {
+							return error('Expect the character \\uXXXX\\uXXXX.')
+						}
+						next2_char:=s.text[s.pos..s.pos+2]
+						
+						if next2_char != '\\u'{
+							return error('Expect the character \\uXXXX\\uXXXX.')
+						}
+
+						utf16_str_trail:=s.text[s.pos+2..s.pos+6]
+						for i in utf16_str_trail{
+							if !i.is_hex_digit(){
+								error('The hex character is expected after the \\u character.')
+							}
+						}
+						utf16_codepoint_trail:=('0x' + utf16_str_trail).u32()
+
+						if utf16_codepoint_trail < 0xDC00 || utf16_codepoint_trail > 0xDFFF {
+							error('The trail surrogates code point needs to be in the 0xDC00...0xDFFF range.')
+						}
+
+						utf16_codepoint = ((utf16_codepoint - 0xD800) >> 5) | (utf16_codepoint_trail - 0xDC00)
+						utf8byte := unicodepoint_encode_to_utf8byte(utf16_codepoint)?
+						for i in utf8byte{
+							converted_byte << i
+						}
+						s.pos+=5
+
+					}else{
+						error('Needs lead surrogates before trail surrogates.')
+					}
+				}
+				else{
+					error('The character \\${s.text[s.pos..s.pos+1]} could not be escaped.')		
+				}
+			}
+			s.pos++
 		} else {
 			if c == `"`{
+				converted_byte << c
 				s.pos++
 				break
+			}
+
+			u := s.get_unicodepoint(s.text,s.pos)?
+
+			if u.code_point < 0x20 ||
+			   (u.code_point > 0x21 && u.code_point < 0x23) || 
+			   (u.code_point > 0x5B && u.code_point < 0x5D) ||
+			   u.code_point > 0x10FFFF {
+				   return error('Invalid code point value: ${u.code_point}.')
+			}
+
+			s.pos += u.pos_offset
+			for i:=0;i<u.size;i++ {
+				converted_byte << s.text[s.pos]
+				s.pos++
 			}
 		}
 
 		s.pos++
 	}
-	return s.pos - start_pos,true
+	return s.pos - start_pos,converted_byte
 }

@@ -1,12 +1,30 @@
 module json112
 
+struct Null{
+	
+}
+
+union ConvertedValue{
+mut:
+	unknown_val int
+	str_val []byte
+	bool_val bool
+	i64_val i64
+	f64_val f64
+	null_val Null
+}
+
 struct Token{
 	//token种类
-	kind Kind
+	kind Kind [required]
 	//token位置
-	pos int
+	pos int [required]
 	//token字符长度
-	len int
+	len int [required]
+	//type 类型
+	typ string [required]
+	//变换后的实际值
+	val ConvertedValue [required]
 }
 
 enum Kind{

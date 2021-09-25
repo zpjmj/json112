@@ -18,11 +18,11 @@ mut:
 }
 
 //初始化
-fn new_parser(json_str string,allow_comments bool) &Parser{
+fn new_parser(json_str string,allow_comments bool)? &Parser{
 	parser := &Parser{
 		json_str:json_str
 		allow_comments:allow_comments
-		scanner:new_scanner(json_str,allow_comments)
+		scanner:new_scanner(json_str,allow_comments,'utf8')?
 	}
 
 	return parser

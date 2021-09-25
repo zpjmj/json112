@@ -37,7 +37,7 @@ pub fn decode(json_str string,allow_comments ...bool) ?Json112{
 		def_allow_comments = allow_comments[0]
 	}
 	//创建解析器Parser
-	mut parser := new_parser(json_str,def_allow_comments)
+	mut parser := new_parser(json_str,def_allow_comments)?
 	return parser.parse()
 }
 
