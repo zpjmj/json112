@@ -1,8 +1,9 @@
 module json112
+import math
 
 const (
-	ws=[` `,`\t`,`\n`,`\r`]
-	structural_char=[`{`,`}`,`[`,`]`,`:`,`,`]
+	ws=[` `,`\t`,`\n`,`\r`]  //空白字符
+	structural_char=[`{`,`}`,`[`,`]`,`:`,`,`] //json结构字符
 )
 
 struct Scanner{
@@ -21,6 +22,10 @@ mut:
 	get_unicodepoint fn(string,int)?Unicode
 }	
 
+//扫描器构造方法
+//text:json字符串
+//scan_comment:是否扫描注释 目前未实现
+//encodeing:编码 目前只支持utf8
 fn new_scanner(text string,scan_comment bool,encodeing string)? &Scanner{
 	mut scanner := &Scanner{
 		text:text
@@ -58,7 +63,7 @@ fn (mut s Scanner) init_scanner()? {
 	log(s.all_tokens)
 }
 
-//获取token
+//从缓存中依次获取token
 fn (mut s Scanner) scan() Token{
 
 	tok := s.all_tokens[s.tidx]
@@ -71,35 +76,44 @@ fn (mut s Scanner) scan() Token{
 	return tok
 }
 
+//扫描json字符生成token
 fn (mut s Scanner) text_scan()? Token{
 	mut start := 0
 	mut len := 0
 	mut str := ""
 
 	for{
+		//跳过空白字符
 		s.skip_ws()
 
+		//扫描到最后一个字符之后
 		if s.pos >= s.text.len{
 			break
 		}
 		c := s.text[s.pos]
 
+		//扫描数字
 		if (c >= `0` && c <= `9`) || c == `-`{
 			start = s.pos
 			len = s.continue_scan()
 			str = s.text[start..start + len]
 
+			//符号位 '-' or '+'
 			mut minus := []byte{}
 			mut minus_flag := true
 
+			//整数
 			mut int_ := []byte{}
 			mut int_flag := false
 
+			//小数
 			mut frac := []byte{}
 			mut frac_flag := false 
 
+			//科学计数法符号位 '-' or '+'
 			mut	exp_sign := []byte{}
 			mut exp_sign_flag := false
+			//科学计数法数值
 			mut exp := []byte{}
 			mut exp_flag := false
 
@@ -124,6 +138,7 @@ fn (mut s Scanner) text_scan()? Token{
 					if b == `.`{
 						int_flag = false
 						frac_flag = true
+						frac << b
 						continue
 					}
 
@@ -142,7 +157,7 @@ fn (mut s Scanner) text_scan()? Token{
 				}
 				if frac_flag {
 					if b == `e` || b == `E`{
-						int_flag = false
+						frac_flag = false
 						exp_sign_flag = true
 						continue
 					}
@@ -156,10 +171,13 @@ fn (mut s Scanner) text_scan()? Token{
 				if exp_sign_flag {
 					if b == `-` || b == `+`{
 						exp_sign << b
+						exp_sign_flag = false
+						exp_flag = true
+						continue
+					} else {
+						exp_sign_flag = false
+						exp_flag = true
 					}
-					exp_sign_flag = false
-					exp_flag = true
-					continue
 				}
 				if exp_flag {
 					if b >= `0` && b <= `9`{
@@ -171,49 +189,89 @@ fn (mut s Scanner) text_scan()? Token{
 				}
 			}
 
+			log('Number sacn:')
+			log(minus)
+			log(int_)
+			log(frac)
+			log(exp_sign)
+			log(exp)
+			log(error_flg)
+
 			if error_flg {
-				return s.new_token(.unknown,start,len,0)
+				return s.new_token(.unknown,start,len,.undefined,0)
 			}
 
-			return s.new_token(.number,start,len,0)
+			if int_.len < 1 || (frac.len > 0 && frac.len < 2) || (exp_flag && exp.len == 0){
+				return s.new_token(.unknown,start,len,.undefined,0)
+			}
+
+			mut number_str :=''
+	
+			unsafe{
+				if minus.len > 0{
+					number_str = tos(minus.data,minus.len) + tos(int_.data,int_.len)
+				}else{
+					number_str = tos(int_.data,int_.len)
+				}
+			}
+			
+			if frac.len > 0 {
+				unsafe{
+					number_str = number_str + tos(frac.data,frac.len)
+				}
+			}
+			mut number_val := number_str.f64()
+
+			if exp_flag {
+				unsafe{
+					if exp_sign.len == 0{
+						number_val = number_val * math.pow(10,tos(exp.data,exp.len).i64())
+					}else{
+						number_val = number_val * math.pow(10,(tos(exp_sign.data,exp_sign.len) + tos(exp.data,exp.len)).i64())
+					}
+				}
+			}
+
+			return s.new_token(.number,start,len,.number,number_val)
 		}
 
 		match c {
 			`"` {
 				start = s.pos
+				//扫描字符串
 				len_,converted_utf8_byte := s.string_scan()?
 				
-				return s.new_token(.string,start,len_,converted_utf8_byte)
+				return s.new_token(.string,start,len_,.string,converted_utf8_byte)
 			}
 			`:` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.colon,start,1,0)
+				return s.new_token(.colon,start,1,.undefined,0)
 			}
 			`,` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.comma,start,1,0)
+				return s.new_token(.comma,start,1,.undefined,0)
 			}
 			`{` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.begin_objec,start,1,0)
+				return s.new_token(.begin_objec,start,1,.undefined,0)
 			}
 			`}` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.end_object,start,1,0)
+				return s.new_token(.end_object,start,1,.undefined,0)
 			}
 			`[` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.begin_array,start,1,0)
+				return s.new_token(.begin_array,start,1,.undefined,0)
 			}
 			`]` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.end_array,start,1,0)
+				return s.new_token(.end_array,start,1,.undefined,0)
 			}
 			`n`{
 				start = s.pos
@@ -221,9 +279,9 @@ fn (mut s Scanner) text_scan()? Token{
 				str = s.text[start..start + len]
 
 				if str == 'null' {
-					return s.new_token(.null,start,len,0)		
+					return s.new_token(.null,start,len,.null,Null{})		
 				}else{
-					return s.new_token(.unknown,start,len,0)	
+					return s.new_token(.unknown,start,len,.undefined,0)	
 				}
 			}
 			`t`,`f` {
@@ -232,56 +290,60 @@ fn (mut s Scanner) text_scan()? Token{
 				str = s.text[start..start + len]
 
 				if str == 'true'{
-					return s.new_token(.boolean,start,len,true)	
+					return s.new_token(.boolean,start,len,.bool,true)	
 				}else if str == 'false'{
-					return s.new_token(.boolean,start,len,false)	
+					return s.new_token(.boolean,start,len,.bool,false)	
 				}else{
-					return s.new_token(.unknown,start,len,0)	
+					return s.new_token(.unknown,start,len,.undefined,0)	
 				}
 			}
 			else {
 				start = s.pos
 				len = s.continue_scan()
-				return s.new_token(.unknown,start,len,0)
+				return s.new_token(.unknown,start,len,.undefined,0)
 			}
 		}
 	}
 
-	return s.new_token(.eof,s.pos,0,0)
+	return s.new_token(.eof,s.pos,0,.undefined,0)
 }
 
-fn (mut s Scanner) new_token<T>(kind Kind,pos int,len int,val T) Token{
+//创建Token
+//kind:Token种类
+//pos:Token在json字符串的开始位置
+//len:Token字符占json字符串的长度
+//typ:扫描器转换后TokenVal的类型
+//val:扫描器转换后TokenVal的值
+fn (mut s Scanner) new_token<T>(kind Kind,pos int,len int,typ TokenValType,val T) Token{
 	mut converted_value := ConvertedValue{}
 
 	$if T is []byte{
-		converted_value.str_val = val
+		unsafe{
+			converted_value.string_val = tos(val.data,val.len)
+		}
 	}$else $if T is bool{
 		converted_value.bool_val = val
-	}$else $if T is i64{
-		converted_value.i64_val = val		
 	}$else $if T is f64{
-		converted_value.f64_val = val		
-	}$else $if T is int{
-		converted_value.unknown_val = val	
+		converted_value.number_val = val		
 	}$else{
-		converted_value.null_val = val
+		converted_value.skip = 0
 	}
 
 	return Token{
 		kind:kind
 		pos:pos
 		len:len
-		typ:'zzz'
+		typ:typ
 		val:converted_value
 	}
 }
-
+//跳过空白字符
 fn (mut s Scanner) skip_ws() {
 	for{
 		if s.pos >= s.text.len{
 			break
 		}
-
+		
 		c := s.text[s.pos]
 		if c !in ws{
 			break
@@ -289,11 +351,15 @@ fn (mut s Scanner) skip_ws() {
 		s.pos++
 	}
 }
-
+//扫描到关键字后继续扫描到结构字符
 fn (mut s Scanner) continue_scan() int{
 	start_pos := s.pos
 	mut last_pos := s.pos
 	for{
+		if s.pos >= s.text.len{
+			break
+		}
+
 		s.skip_ws()
 
 		c := s.text[s.pos]
@@ -304,23 +370,21 @@ fn (mut s Scanner) continue_scan() int{
 		if last_pos != s.pos {
 			break
 		}
-		if s.pos >= s.text.len{
-			break
-		}
+
 		s.pos++
 		last_pos = s.pos
 	}
 	return last_pos - start_pos
 }
 
+//扫描字符串
+[inline]
 fn (mut s Scanner) string_scan()? (int,[]byte){
 	mut escape_flag := false
 	start_pos := s.pos
 	s.pos++
 	
 	mut converted_byte := []byte{}
-	converted_byte << `"`
-
 	for{
 		if s.pos >= s.text.len{
 			return error('Expect a quote to close the string.')
@@ -328,12 +392,14 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 
 		c := s.text[s.pos]
 
+		//第一次扫描的转义字符
 		if !escape_flag && c == `\\` {
 			escape_flag = true
 			s.pos++
 			continue
 		}
 
+		//转义字符的下一个字符
 		if escape_flag {
 			match c{
 				`"`{
@@ -361,26 +427,29 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 					converted_byte << `\t`
 				}
 				`u`{
-					if (s.pos + 5) >= s.text.len {
+					//变换utf16转义字符串到utf8字符
+					if (s.pos + 4) >= s.text.len {
 						return error('Expect the character \\uXXXX.')
 					}
 
 					utf16_str:=s.text[s.pos+1..s.pos+5]
+
 					for i in utf16_str{
 						if !i.is_hex_digit(){
-							error('The hex character is expected after the \\u character.')
+							return error('The hex character is expected after the \\u character.')
 						}
 					}
 					s.pos+=5
 
 					mut utf16_codepoint:=('0x' + utf16_str).u32()
-
-					if utf16_codepoint < 0xD800 && utf16_codepoint > 0xDFFF {
+					//基本多语言平面码点
+					if utf16_codepoint < 0xD800 || utf16_codepoint > 0xDFFF {
 						utf8byte := unicodepoint_encode_to_utf8byte(utf16_codepoint)?
 						for i in utf8byte{
 							converted_byte << i
 						}
 						s.pos--
+					//辅助平面码点
 					}else if utf16_codepoint > 0xD7FF && utf16_codepoint < 0xDC00{
 						if (s.pos + 6) >= s.text.len {
 							return error('Expect the character \\uXXXX\\uXXXX.')
@@ -392,18 +461,19 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 						}
 
 						utf16_str_trail:=s.text[s.pos+2..s.pos+6]
+
 						for i in utf16_str_trail{
 							if !i.is_hex_digit(){
-								error('The hex character is expected after the \\u character.')
+								return error('The hex character is expected after the \\u character.')
 							}
 						}
 						utf16_codepoint_trail:=('0x' + utf16_str_trail).u32()
 
 						if utf16_codepoint_trail < 0xDC00 || utf16_codepoint_trail > 0xDFFF {
-							error('The trail surrogates code point needs to be in the 0xDC00...0xDFFF range.')
+							return error('The trail surrogates code point needs to be in the 0xDC00...0xDFFF range.')
 						}
 
-						utf16_codepoint = ((utf16_codepoint - 0xD800) >> 5) | (utf16_codepoint_trail - 0xDC00)
+						utf16_codepoint = ((utf16_codepoint - 0xD800) << 10) | (utf16_codepoint_trail - 0xDC00) + 0x10000
 						utf8byte := unicodepoint_encode_to_utf8byte(utf16_codepoint)?
 						for i in utf8byte{
 							converted_byte << i
@@ -411,23 +481,25 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 						s.pos+=5
 
 					}else{
-						error('Needs lead surrogates before trail surrogates.')
+						return error('Needs lead surrogates before trail surrogates.')
 					}
 				}
 				else{
-					error('The character \\${s.text[s.pos..s.pos+1]} could not be escaped.')		
+					return error('The character \\${s.text[s.pos..s.pos+1]} could not be escaped.')		
 				}
 			}
+			escape_flag = false
 			s.pos++
+		//不需要转义的字符
 		} else {
+			//扫描用于闭合字符串的双引号
 			if c == `"`{
-				converted_byte << c
 				s.pos++
 				break
 			}
 
+			//获取码点值 校验码点值是否在合理区间内
 			u := s.get_unicodepoint(s.text,s.pos)?
-
 			if u.code_point < 0x20 ||
 			   (u.code_point > 0x21 && u.code_point < 0x23) || 
 			   (u.code_point > 0x5B && u.code_point < 0x5D) ||
@@ -441,8 +513,6 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 				s.pos++
 			}
 		}
-
-		s.pos++
 	}
 	return s.pos - start_pos,converted_byte
 }

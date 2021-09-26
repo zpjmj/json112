@@ -50,6 +50,3 @@ fn (mut p Parser) next_token(){
 	p.peek_tok = p.scanner.scan()
 }
 
-
-
-

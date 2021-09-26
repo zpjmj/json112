@@ -1,17 +1,24 @@
 module json112
 
-struct Null{
-	
+//表示null值
+struct Null{}
+
+//指示token转换后值的类型
+enum TokenValType{
+	undefined
+	null
+	number
+	string
+	bool
 }
 
+//经过扫描器后转换后的实际值 主要是number和string中的转义处理
 union ConvertedValue{
 mut:
-	unknown_val int
-	str_val []byte
+	skip int
+	string_val string
 	bool_val bool
-	i64_val i64
-	f64_val f64
-	null_val Null
+	number_val f64
 }
 
 struct Token{
@@ -22,7 +29,7 @@ struct Token{
 	//token字符长度
 	len int [required]
 	//type 类型
-	typ string [required]
+	typ TokenValType [required]
 	//变换后的实际值
 	val ConvertedValue [required]
 }
