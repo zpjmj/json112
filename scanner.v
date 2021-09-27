@@ -6,6 +6,16 @@ const (
 	structural_char=[`{`,`}`,`[`,`]`,`:`,`,`] //json结构字符
 )
 
+interface StringScanner{
+	//json原始字符
+	text string
+mut:
+	//当前扫描位置
+	pos int
+	//获取unicode码点
+	get_unicodepoint fn(string,int)?Unicode
+}
+
 struct Scanner{
 	//json原始字符
 	text string [required]
@@ -44,7 +54,6 @@ fn new_scanner(text string,scan_comment bool,encodeing string)? &Scanner{
 		}
 	}
 
-
 	//初始化
 	scanner.init_scanner()?
 	return scanner
@@ -60,7 +69,6 @@ fn (mut s Scanner) init_scanner()? {
 			break
 		}
 	}
-	log(s.all_tokens)
 }
 
 //从缓存中依次获取token
@@ -189,13 +197,13 @@ fn (mut s Scanner) text_scan()? Token{
 				}
 			}
 
-			log('Number sacn:')
-			log(minus)
-			log(int_)
-			log(frac)
-			log(exp_sign)
-			log(exp)
-			log(error_flg)
+			// log('Number sacn:')
+			// log(minus)
+			// log(int_)
+			// log(frac)
+			// log(exp_sign)
+			// log(exp)
+			// log(error_flg)
 
 			if error_flg {
 				return s.new_token(.unknown,start,len,.undefined,0)
@@ -239,7 +247,8 @@ fn (mut s Scanner) text_scan()? Token{
 			`"` {
 				start = s.pos
 				//扫描字符串
-				len_,converted_utf8_byte := s.string_scan()?
+				//len_,converted_utf8_byte := s.string_scan()?
+				len_,converted_utf8_byte := string_scan(mut &s)?
 				
 				return s.new_token(.string,start,len_,.string,converted_utf8_byte)
 			}
@@ -256,7 +265,7 @@ fn (mut s Scanner) text_scan()? Token{
 			`{` {
 				start = s.pos
 				s.pos++
-				return s.new_token(.begin_objec,start,1,.undefined,0)
+				return s.new_token(.begin_object,start,1,.undefined,0)
 			}
 			`}` {
 				start = s.pos
@@ -379,7 +388,7 @@ fn (mut s Scanner) continue_scan() int{
 
 //扫描字符串
 [inline]
-fn (mut s Scanner) string_scan()? (int,[]byte){
+fn string_scan(mut s &StringScanner)? (int,[]byte){
 	mut escape_flag := false
 	start_pos := s.pos
 	s.pos++
@@ -387,6 +396,7 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 	mut converted_byte := []byte{}
 	for{
 		if s.pos >= s.text.len{
+			log('string_scan 0001')
 			return error('Expect a quote to close the string.')
 		}
 
@@ -429,6 +439,7 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 				`u`{
 					//变换utf16转义字符串到utf8字符
 					if (s.pos + 4) >= s.text.len {
+						log('string_scan 0002')
 						return error('Expect the character \\uXXXX.')
 					}
 
@@ -436,6 +447,7 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 
 					for i in utf16_str{
 						if !i.is_hex_digit(){
+							log('string_scan 0003')
 							return error('The hex character is expected after the \\u character.')
 						}
 					}
@@ -452,11 +464,13 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 					//辅助平面码点
 					}else if utf16_codepoint > 0xD7FF && utf16_codepoint < 0xDC00{
 						if (s.pos + 6) >= s.text.len {
+							log('string_scan 0004')
 							return error('Expect the character \\uXXXX\\uXXXX.')
 						}
 						next2_char:=s.text[s.pos..s.pos+2]
 						
 						if next2_char != '\\u'{
+							log('string_scan 0005')
 							return error('Expect the character \\uXXXX\\uXXXX.')
 						}
 
@@ -464,12 +478,14 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 
 						for i in utf16_str_trail{
 							if !i.is_hex_digit(){
+								log('string_scan 0006')
 								return error('The hex character is expected after the \\u character.')
 							}
 						}
 						utf16_codepoint_trail:=('0x' + utf16_str_trail).u32()
 
 						if utf16_codepoint_trail < 0xDC00 || utf16_codepoint_trail > 0xDFFF {
+							log('string_scan 0007')
 							return error('The trail surrogates code point needs to be in the 0xDC00...0xDFFF range.')
 						}
 
@@ -481,10 +497,12 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 						s.pos+=5
 
 					}else{
+						log('string_scan 0008')
 						return error('Needs lead surrogates before trail surrogates.')
 					}
 				}
 				else{
+					log('string_scan 0009')
 					return error('The character \\${s.text[s.pos..s.pos+1]} could not be escaped.')		
 				}
 			}
@@ -504,6 +522,7 @@ fn (mut s Scanner) string_scan()? (int,[]byte){
 			   (u.code_point > 0x21 && u.code_point < 0x23) || 
 			   (u.code_point > 0x5B && u.code_point < 0x5D) ||
 			   u.code_point > 0x10FFFF {
+				   log('string_scan 0010')
 				   return error('Invalid code point value: ${u.code_point}.')
 			}
 

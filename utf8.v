@@ -7,10 +7,12 @@ module json112
 fn utf8str_to_unicodepoint(str string,pos int)?Unicode{
 	//pos位置check
 	if str.len == 0 {
+		log('utf8str_to_unicodepoint 0001')
 		return error('Input string length = 0.')
 	}
 
 	if pos >= str.len || pos < 0{
+		log('utf8str_to_unicodepoint 0002')
 		return error('Position < string.len.')
 	}
 
@@ -43,6 +45,7 @@ fn utf8str_to_unicodepoint(str string,pos int)?Unicode{
 				}
 			} 
 		}
+		log('utf8str_to_unicodepoint 0003')
 		return error('Not found first byte.')
 	}
 
@@ -58,6 +61,7 @@ fn utf8str_to_unicodepoint(str string,pos int)?Unicode{
 	//为2byte的utf8字时
 	if bit_123 == 0b00000110{
 		if str.len - pos < 2{
+			log('utf8str_to_unicodepoint 0004')
 			return error('This code point requires at least 2 bytes.')
 		}	
 		unicode.size = 2
@@ -66,6 +70,7 @@ fn utf8str_to_unicodepoint(str string,pos int)?Unicode{
 	//为3byte的utf8字时
 	}else if bit_1234 == 0b00001110{
 		if str.len - pos < 3{
+			log('utf8str_to_unicodepoint 0005')
 			return error('This code point requires at least 3 bytes.')
 		}
 		unicode.size = 3
@@ -75,6 +80,7 @@ fn utf8str_to_unicodepoint(str string,pos int)?Unicode{
 	//为4byte的utf8字时
 	}else if bit_12345 == 0b00011110{
 		if str.len - pos < 4{
+			log('utf8str_to_unicodepoint 0006')
 			return error('This code point requires at least 4 bytes.')
 		}
 		unicode.size = 4
@@ -85,6 +91,7 @@ fn utf8str_to_unicodepoint(str string,pos int)?Unicode{
 	}else{
 		//大于4byte的utf8字暂时不支持
 		//目前最大应该为 0x10FFFF 但多处理一些应该也没有问题吧
+		log('utf8str_to_unicodepoint 0007')
 		return error('Code point > U+1FFFFF.')
 	}
 
@@ -96,6 +103,7 @@ fn utf8str_to_unicodepoint(str string,pos int)?Unicode{
 fn unicodepoint_encode_to_utf8byte(codepoint u32)?[]byte{
 	//大于4byte的utf8字暂时不支持
 	if codepoint > 0x1FFFFF{
+		log('unicodepoint_encode_to_utf8byte 0001')
 		return error('Code point > U+1FFFFF.')
 	}
 

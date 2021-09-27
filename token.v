@@ -41,7 +41,7 @@ enum Kind{
 	boolean
 	number
 	string
-	begin_objec // {
+	begin_object // {
 	begin_array // [
 	end_object // }
 	end_array // ]
