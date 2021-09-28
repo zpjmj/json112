@@ -51,13 +51,13 @@ false
     //Json112对象内部存储一个map,decode方法把json字符串中所有节点名字和节点值储存进map<br>
     //The Json112 object stores a map inside, and the decode method stores all the node names and node values in the JSON string into the map
     struct Json112{
-        all_node map[string]Json112Node
+        all_nodes map[string]Json112Node
     }
 
     ex:
     json112.decode(r'{"name":"112","age":10}') or {panic(err)}
     >>>
-    Json112.all_node:
+    Json112.all_nodes:
     {'["name"]': json112.Json112Node{
         node_typ: string
         node_val: json112.ConvertedValue{
