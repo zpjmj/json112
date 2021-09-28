@@ -66,7 +66,7 @@ fn (mut p Parser) parse() ?Json112{
 
 	//log(p.all_node)
 	return Json112{
-		all_node:p.all_node
+		all_nodes:p.all_node
 		formatted_str:p.json_str
 	}
 }

@@ -5,7 +5,7 @@ struct Json112{
 	//格式化后的json字符串
 	formatted_str string
 pub:
-	all_node map[string]Json112Node
+	all_nodes map[string]Json112Node
 }
 
 fn (J Json112) str() string{
@@ -47,7 +47,7 @@ pub fn (J Json112) exist(node NodeIndex) bool{
 		panic('The type of the input parameter must be string or Json112NodeIndex.')
 	}
 
-	return (node_index in J.all_node)
+	return (node_index in J.all_nodes)
 }
 
 //获取节点的值 只能获取基本类型boolean number string的值
@@ -63,11 +63,11 @@ pub fn (J Json112) val<T>(node NodeIndex) T{
 		panic('The type of the input parameter must be string or Json112NodeIndex.')
 	}
 
-	if !(node_index in J.all_node) {
+	if !(node_index in J.all_nodes) {
 		panic('Node does not exist.')
 	}
 
-	json_node := J.all_node[node_index]
+	json_node := J.all_nodes[node_index]
 
 	$if T is string{
 		unsafe{
@@ -99,11 +99,11 @@ pub fn (J Json112) typ(node NodeIndex) Json112NodeType{
 		panic('The type of the input parameter must be string or Json112NodeIndex.')
 	}
 
-	if !(node_index in J.all_node) {
+	if !(node_index in J.all_nodes) {
 		panic('Node does not exist.')
 	}
 
-	json_node := J.all_node[node_index]
+	json_node := J.all_nodes[node_index]
 
 	return json_node.node_typ
 }
