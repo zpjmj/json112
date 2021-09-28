@@ -346,6 +346,7 @@ fn (mut s Scanner) new_token<T>(kind Kind,pos int,len int,typ TokenValType,val T
 		val:converted_value
 	}
 }
+
 //跳过空白字符
 fn (mut s Scanner) skip_ws() {
 	for{
@@ -360,6 +361,7 @@ fn (mut s Scanner) skip_ws() {
 		s.pos++
 	}
 }
+
 //扫描到关键字后继续扫描到结构字符
 fn (mut s Scanner) continue_scan() int{
 	start_pos := s.pos

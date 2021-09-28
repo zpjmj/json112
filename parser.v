@@ -60,7 +60,7 @@ fn (mut p Parser) parse() ?Json112{
 		return error('SyntaxError: Unexpected end of JSON input')
 	}
 
-	log(p.all_node)
+	//log(p.all_node)
 	return Json112{
 		all_node:p.all_node
 	}
@@ -122,7 +122,7 @@ fn (mut p Parser) decl_object(prev_node_name string)?{
 							node_val:p.tok.val
 						}
 						p.all_node[name] = node
-						p.decl_object(name + '.')?
+						p.decl_object(name)?
 					}
 					.begin_array{
 						node := Json112Node{
@@ -130,7 +130,13 @@ fn (mut p Parser) decl_object(prev_node_name string)?{
 							node_val:p.tok.val
 						}
 						p.all_node[name] = node
-						p.decl_array(name)?
+
+						arrlen := p.decl_array(name)?
+						len_node := Json112Node{
+							node_typ:.number
+							node_val:ConvertedValue{number_val:arrlen}
+						}
+						p.all_node[name+'.len'] = len_node
 					}
 					else{
 						log('Parser.decl_object 0002')
@@ -166,9 +172,10 @@ fn (mut p Parser) decl_object(prev_node_name string)?{
 	}
 }
 
-fn (mut p Parser) decl_array(prev_node_name string)?{
+fn (mut p Parser) decl_array(prev_node_name string)?f64{
 	mut is_first := true
 	mut index := 0
+	mut len := 0
 
 	for{
 		p.next_token()
@@ -187,6 +194,7 @@ fn (mut p Parser) decl_array(prev_node_name string)?{
 					return error('SyntaxError: Unexpected token `${p.json_str[p.tok.pos..p.tok.pos+p.tok.len]}` in JSON at position ${p.tok.pos}')
 				}
 				is_first = false
+				len++
 			}
 			.number{
 				name := prev_node_name + '[$index]'
@@ -201,6 +209,7 @@ fn (mut p Parser) decl_array(prev_node_name string)?{
 					return error('SyntaxError: Unexpected token `${p.json_str[p.tok.pos..p.tok.pos+p.tok.len]}` in JSON at position ${p.tok.pos}')
 				}
 				is_first = false
+				len++
 			}
 			.boolean{
 				name := prev_node_name + '[$index]'
@@ -215,6 +224,7 @@ fn (mut p Parser) decl_array(prev_node_name string)?{
 					return error('SyntaxError: Unexpected token `${p.json_str[p.tok.pos..p.tok.pos+p.tok.len]}` in JSON at position ${p.tok.pos}')
 				}
 				is_first = false
+				len++
 			}
 			.null{
 				name := prev_node_name + '[$index]'
@@ -229,6 +239,7 @@ fn (mut p Parser) decl_array(prev_node_name string)?{
 					return error('SyntaxError: Unexpected token `${p.json_str[p.tok.pos..p.tok.pos+p.tok.len]}` in JSON at position ${p.tok.pos}')
 				}
 				is_first = false
+				len++
 			}
 			.begin_object{
 				name := prev_node_name + '[$index]'
@@ -237,13 +248,14 @@ fn (mut p Parser) decl_array(prev_node_name string)?{
 					node_val:p.tok.val
 				}
 				p.all_node[name] = node
-				p.decl_object(name + '.')?
-				
+				p.decl_object(name)?
+
 				if p.peek_tok.kind != .comma && p.peek_tok.kind != .end_array{
 					log('Parser.decl_array 0005')
 					return error('SyntaxError: Unexpected token `${p.json_str[p.tok.pos..p.tok.pos+p.tok.len]}` in JSON at position ${p.tok.pos}')
 				}
 				is_first = false
+				len++
 			}
 			.begin_array{
 				name := prev_node_name + '[$index]'
@@ -252,13 +264,20 @@ fn (mut p Parser) decl_array(prev_node_name string)?{
 					node_val:p.tok.val
 				}
 				p.all_node[name] = node
-				p.decl_array(name)?
-				
+
+				arrlen := p.decl_array(name)?
+				len_node := Json112Node{
+					node_typ:.number
+					node_val:ConvertedValue{number_val:arrlen}
+				}
+				p.all_node[name+'.len'] = len_node
+
 				if p.peek_tok.kind != .comma && p.peek_tok.kind != .end_array{
 					log('Parser.decl_array 0006')
 					return error('SyntaxError: Unexpected token `${p.json_str[p.tok.pos..p.tok.pos+p.tok.len]}` in JSON at position ${p.tok.pos}')
 				}
 				is_first = false
+				len++
 			}
 			.comma{
 				if is_first {
@@ -273,7 +292,7 @@ fn (mut p Parser) decl_array(prev_node_name string)?{
 				index++
 			}
 			.end_array{
-				return
+				break
 			}
 			else{
 				log('Parser.decl_array 0009')
@@ -281,4 +300,5 @@ fn (mut p Parser) decl_array(prev_node_name string)?{
 			}
 		}
 	}
+	return len
 }

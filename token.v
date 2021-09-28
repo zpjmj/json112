@@ -51,15 +51,21 @@ enum Kind{
 }
 
 struct NodeToken{
-	kind NodeKind
-
+	//token种类
+	kind NodeKind [required]
+	//token位置
+	pos int [required]
+	//token字符长度
+	len int [required]
+	//变换后的实际值
+	val string [required]
 }
 
 enum NodeKind{
 	unknown
-	name
-	index // 123
-	lsbr // [
-	rsbr // ]
-	dot // .
+	eof
+	name   //xxx
+	string// ["xxx"] 
+	index // [0]
+	dot
 }
