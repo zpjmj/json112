@@ -2,7 +2,14 @@ module json112
 
 [heap]
 struct Json112{
+	//格式化后的json字符串
+	formatted_str string
+pub:
 	all_node map[string]Json112Node
+}
+
+fn (J Json112) str() string{
+	return J.formatted_str
 }
 
 pub enum Json112NodeType{

@@ -1,5 +1,7 @@
 module json112
 
+import ast
+
 //解析器 json string to object
 struct Parser{
 	//json原始字符串
@@ -17,6 +19,8 @@ mut:
 	peek_tok Token
 	//保存解析后的节点
 	all_node map[string]Json112Node
+	//格式化json字符串
+    ast_json_object ast.JsonObject
 }
 
 //初始化
@@ -63,12 +67,12 @@ fn (mut p Parser) parse() ?Json112{
 	//log(p.all_node)
 	return Json112{
 		all_node:p.all_node
+		formatted_str:p.json_str
 	}
 }
 
 fn (mut p Parser) decl_object(prev_node_name string)?{
 	mut is_first := true
-
 	for{
 		p.next_token()
 		tok := p.tok
