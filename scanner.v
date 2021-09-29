@@ -328,7 +328,11 @@ fn (mut s Scanner) new_token<T>(kind Kind,pos int,len int,typ TokenValType,val T
 
 	$if T is []byte{
 		unsafe{
-			converted_value.string_val = tos(val.data,val.len)
+			if val.len > 0 {
+				converted_value.string_val = tos(val.data,val.len)
+			}else{
+				converted_value.string_val = ''
+			}
 		}
 	}$else $if T is bool{
 		converted_value.bool_val = val

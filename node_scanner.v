@@ -100,7 +100,11 @@ fn (mut s NodeScanner) text_scan() NodeToken{
 								}
 								mut str := ''
 								unsafe{
-									str = tos(converted_utf8_byte.data,converted_utf8_byte.len)
+									if converted_utf8_byte.len > 0{
+										str = tos(converted_utf8_byte.data,converted_utf8_byte.len)
+									}else{
+										str = ''
+									}
 								}
 								s.pos++
 								return s.new_token(.string,start,len_,str)
