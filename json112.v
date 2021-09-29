@@ -117,7 +117,7 @@ pub fn node(node_str string) Json112NodeIndex{
 //encode json string to object
 pub fn decode(json_str string,allow_comments ...bool) ?Json112{
 	mut def_allow_comments := false
-	if allow_comments.len != 0{
+	if allow_comments.len > 0{
 		def_allow_comments = allow_comments[0]
 	}
 	//创建解析器Parser
@@ -125,12 +125,167 @@ pub fn decode(json_str string,allow_comments ...bool) ?Json112{
 	return parser.parse()
 }
 
-//encode object to json string
-pub fn encode<T>(typ T,mapping map[string]string,beautify ...bool) ?string {
-	return ""
-}
+// type VJsonNumber=i8|i16|int|i64|isize|byte|u16|u32|u64|usize
+// //encode object to json string
+// pub fn encode<T>(typ T,mut mapping ...map[string]string) string {
+// 	mut mapping_default := map[string]string{}
 
+// 	if mapping.len > 0 {
+// 		 mapping[0].move(mapping_default)
+// 	}
+	
+// 	return "{${encode_array(typ,mapping_default)}}"
+// }
 
+// fn encode_array<T>(typ T,mapping map[string]string)string{
+// 	mut obj_str := ''
+// 	mut arr_str := ''
+// 	mut j_str := ''
+// 	mut name := ''
 
+// 	$for f in T.fields {
+// 		$if f.typ is VJsonNumber {
+// 			if f.name in mapping{
+// 				name = mapping[f.name]
+// 			}else{
+// 				name = f.name
+// 			}
+// 			j_str +=  '"$name":' + f64(typ.$(f.name)).str()
+// 		}$else $if f.typ is string {
+// 			if f.name in mapping{
+// 				name = mapping[f.name]
+// 			}else{
+// 				name = f.name
+// 			}
+// 			j_str +=  '"$name":"' + typ.$(f.name) + '"'
+// 		}$else $if f.typ is bool {
+// 			if f.name in mapping{
+// 				name = mapping[f.name]
+// 			}else{
+// 				name = f.name
+// 			}
+// 			j_str +=  '"$name":' + typ.$(f.name).str()
+// 		}$else $if f.typ is bool {
+
+// 			mut type_name := typeof(f).name
+// 			mut type_name2 := ''
+// 			mut type_name4 := ''
+
+// 			if type_name.len > 2{
+// 				type_name2=type_name[0..2]
+// 			}
+
+// 			if type_name.len > 4{
+// 				type_name4=type_name[0..4]
+// 			}
+
+// 			if type_name4 == 'map[' {
+// 				if f.name in mapping{
+// 					name = mapping[f.name]
+// 				}else{
+// 					name = f.name
+// 				}
+// 				j_str +=  '"$name":null'
+// 			}else if type_name2 == '[]' {
+// 				if f.name in mapping{
+// 					name = mapping[f.name]
+// 				}else{
+// 					name = f.name
+// 				}
+// 				arr_str = encode_array(typ.$(f.name),mapping)
+
+// 				j_str +=  '"$name":$arr_str'
+// 			}else{
+// 				if f.name in mapping{
+// 					name = mapping[f.name]
+// 				}else{
+// 					name = f.name
+// 				}
+// 				obj_str = encode_object(typ.$(f.name),mapping)
+
+// 				j_str +=  '"$name":$obj_str'
+// 			}
+// 		}
+
+// 		j_str = j_str + ','
+// 	}
+
+// 	return "[$j_str]"
+// }
+
+// fn encode_object<T>(typ T,mapping map[string]string)string{
+// 	mut obj_str := ''
+// 	mut arr_str := ''
+// 	mut j_str := ''
+// 	mut name := ''
+// 	$for f in T.fields {
+// 		$if f.typ is VJsonNumber {
+// 			if f.name in mapping{
+// 				name = mapping[f.name]
+// 			}else{
+// 				name = f.name
+// 			}
+// 			j_str +=  '"$name":' + f64(typ.$(f.name)).str()
+// 		}$else $if f.typ is string {
+// 			if f.name in mapping{
+// 				name = mapping[f.name]
+// 			}else{
+// 				name = f.name
+// 			}
+// 			j_str +=  '"$name":"' + typ.$(f.name) + '"'
+// 		}$else $if f.typ is bool {
+// 			if f.name in mapping{
+// 				name = mapping[f.name]
+// 			}else{
+// 				name = f.name
+// 			}
+// 			j_str +=  '"$name":' + typ.$(f.name).str()
+// 		}$else $if f.typ is bool {
+
+// 			mut type_name := typeof(f).name
+// 			mut type_name2 := ''
+// 			mut type_name4 := ''
+
+// 			if type_name.len > 2{
+// 				type_name2=type_name[0..2]
+// 			}
+
+// 			if type_name.len > 4{
+// 				type_name4=type_name[0..4]
+// 			}
+
+// 			if type_name4 == 'map[' {
+// 				if f.name in mapping{
+// 					name = mapping[f.name]
+// 				}else{
+// 					name = f.name
+// 				}
+// 				j_str +=  '"$name":null'
+// 			}else if type_name2 == '[]' {
+// 				if f.name in mapping{
+// 					name = mapping[f.name]
+// 				}else{
+// 					name = f.name
+// 				}
+// 				arr_str = encode_array(typ.$(f.name),mapping)
+
+// 				j_str +=  '"$name":$arr_str'
+// 			}else{
+// 				if f.name in mapping{
+// 					name = mapping[f.name]
+// 				}else{
+// 					name = f.name
+// 				}
+// 				obj_str = encode_object(typ.$(f.name),mapping)
+
+// 				j_str +=  '"$name":$obj_str'
+// 			}
+// 		}
+
+// 		j_str = j_str + ','
+// 	}
+
+// 	return "[$j_str]"
+// }
 
 
