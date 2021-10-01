@@ -2,6 +2,7 @@
 vlang的json动态解析模块<br>
 vlang dynamic JSON parsing library
 
+![mascot](./mascot.svg)
 ## Example
 ```
 module main
