@@ -8,8 +8,9 @@ pub:
 	all_nodes map[string]Json112Node
 }
 
-fn (J Json112) str() string{
-	return J.formatted_str
+pub fn (J Json112) str() string{
+	return J.all_nodes.str()
+	//return J.formatted_str
 }
 
 pub enum Json112NodeType{
