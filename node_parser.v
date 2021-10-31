@@ -44,17 +44,21 @@ fn (mut p NodeParser) parse() Json112NodeIndex{
 	p.init_parser()
 
 	mut node_index := ''
+	mut parent_node_index := ''
 
 	for{
 		match p.tok.kind{
 			.unknown,.index{
+				parent_node_index = node_index
 				node_index = node_index + p.tok.val
 			}
 			.name,.string{
+				parent_node_index = node_index
 				node_index = node_index + '["${p.tok.val}"]'
 			}
 			.dot{
 				if p.peek_tok.kind != .name{
+					parent_node_index = node_index
 					node_index = node_index + p.tok.val
 				}
 			}
@@ -68,6 +72,6 @@ fn (mut p NodeParser) parse() Json112NodeIndex{
 	return Json112NodeIndex{
 		origin_str:p.node_str
 		node_index:node_index
+		parent_node_index:parent_node_index
 	}
 }
-
