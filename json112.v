@@ -449,7 +449,7 @@ pub fn (mut J Json112) add(node NodeIndex,key_name string,typ Json112NodeType,va
 }
 
 //改变已有节点的值
-pub fn (mut J Json112) change(node NodeIndex)?{
+pub fn (mut J Json112) change(node NodeIndex,typ Json112NodeType,val AddType)?{
 	mut node_index := ''
 	if node is Json112NodeIndex{
 		node_index = node.node_index
@@ -463,6 +463,49 @@ pub fn (mut J Json112) change(node NodeIndex)?{
 		return error('Node does not exist.')
 	}
 
+	if J.all_nodes[node_index].node_typ !in [.null,.boolean,.number,.string]{
+		return error('Only the [null boolean number string] type can change a value.')
+	}
+
+	match typ{
+		.null{
+			J.all_nodes[node_index].node_typ = .null
+			J.all_nodes[node_index].node_val = ConvertedValue{}
+		}
+		.boolean{
+			if val is bool{
+				J.all_nodes[node_index].node_typ = .boolean
+				J.all_nodes[node_index].node_val = ConvertedValue{
+					bool_val:val
+				}
+			}else{
+				return error('Expect a value of type bool.')
+			}
+		}
+		.number{
+			if val is f64{
+				J.all_nodes[node_index].node_typ = .number
+				J.all_nodes[node_index].node_val = ConvertedValue{
+					number_val:val
+				}
+			}else{
+				return error('Expect a value of type f64.')
+			}
+		}
+		.string{
+			if val is string{
+				J.all_nodes[node_index].node_typ = .string
+				J.all_nodes[node_index].node_val = ConvertedValue{
+					string_val:val
+				}
+			}else{
+				return error('Expect a value of type string.')
+			}
+		}
+		else{
+			return error('Only values of type [null boolean number string] are accepted.')
+		}
+	}
 }
 
 [unsafe]
