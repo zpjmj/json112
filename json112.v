@@ -1,7 +1,7 @@
 module json112
 
 [heap]
-struct Json112{
+pub struct Json112{
 pub mut:
 	byte_len int
 	all_nodes map[string]Json112Node
@@ -18,7 +18,7 @@ pub enum Json112NodeType{
 }
 
 //经过扫描器后转换后的实际值 主要是number和string中的转义处理
-union ConvertedValue{
+pub union ConvertedValue{
 mut:
 	skip int
 	string_val string
@@ -26,7 +26,7 @@ mut:
 	number_val f64
 }
 
-struct Json112Node{
+pub struct Json112Node{
 mut:
 	node_typ Json112NodeType
 	node_val ConvertedValue
@@ -34,13 +34,13 @@ mut:
 }
 
 //经过转换后的节点字符串
-struct Json112NodeIndex{
+pub struct Json112NodeIndex{
 	origin_str string
 	node_index string
 	parent_node_index string
 }
 
-type NodeIndex=string|Json112NodeIndex
+pub type NodeIndex=string|Json112NodeIndex
 
 pub fn (J Json112) str() string{
 	return J.stringify([]string{},4)
@@ -290,7 +290,7 @@ pub fn (mut J Json112) remove(node NodeIndex) {
 // 	}
 // }
 
-type AddType = bool|f64|string
+pub type AddType = bool|f64|string
 
 //追加节点
 pub fn (mut J Json112) add(node NodeIndex,key_name string,typ Json112NodeType,val AddType)?int{
