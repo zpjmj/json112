@@ -17,6 +17,15 @@ pub enum Json112NodeType{
 	object
 }
 
+//经过扫描器后转换后的实际值 主要是number和string中的转义处理
+union ConvertedValue{
+mut:
+	skip int
+	string_val string
+	bool_val bool
+	number_val f64
+}
+
 struct Json112Node{
 mut:
 	node_typ Json112NodeType
@@ -281,21 +290,162 @@ pub fn (mut J Json112) remove(node NodeIndex) {
 // 	}
 // }
 
+type AddType = bool|f64|string
+
 //追加节点
-pub fn (mut J Json112) add(node NodeIndex)?{
-	mut node_index := ''
+pub fn (mut J Json112) add(node NodeIndex,key_name string,typ Json112NodeType,val AddType)?int{
+	mut parent_node_index := ''
 	if node is Json112NodeIndex{
-		node_index = node.node_index
+		parent_node_index = node.node_index
 	}else if node is string{
 		mut parser := new_node_parser(node)
 		parsed_node := parser.parse()
-		node_index = parsed_node.node_index
+		parent_node_index = parsed_node.node_index
 	}
 
-	if node_index in J.all_nodes {
-		return error('Node already exists.')
+	mut parent_json_node := Json112Node{
+		node_typ:.object
 	}
 
+	if parent_node_index != ''{
+		if parent_node_index !in J.all_nodes {
+			return error('Parent does not exist.')
+		}
+
+		parent_json_node = J.all_nodes[parent_node_index]
+		if parent_json_node.node_typ != .array && parent_json_node.node_typ != .object{
+			return error('The parent node type must be array or object.')
+		}
+	}
+
+	mut checked_key_name := ''
+	mut scanner := new_scanner(key_name,false,'utf8')?
+	tok := scanner.scan()
+	peek_tok := scanner.scan()
+
+	if tok.kind == .string && peek_tok.kind == .eof{
+		unsafe{
+			checked_key_name = tok.val.string_val
+		}
+	}
+
+	mut max_index := -1
+	mut new_node_index := ''
+
+	if parent_json_node.node_typ == .array{
+		arr_len_node_index := parent_node_index + '["len"]'
+		unsafe{
+			max_index = int(J.all_nodes[arr_len_node_index].node_val.number_val)
+		}
+		new_node_index = parent_node_index + '[$max_index]'
+
+		unsafe{
+			J.all_nodes[arr_len_node_index].node_val.number_val++
+		}
+	}else{
+		if checked_key_name.len == 0 {
+			return error('Need a reasonable key name like "name".')
+		}	
+
+		new_node_index = parent_node_index + '["$checked_key_name"]'
+
+		if new_node_index in J.all_nodes{
+			error('The node to append already exists, use the change method.')
+		}
+
+		if parent_node_index == ''{
+			J.child_node << checked_key_name
+		}else{
+			J.all_nodes[parent_node_index].child_node << checked_key_name
+		}
+	}
+
+	match typ{
+		.null {
+			J.all_nodes[new_node_index] = Json112Node{
+				node_typ:.null
+				node_val:ConvertedValue{}
+			}
+		}
+		.boolean {
+			if val is bool{
+				J.all_nodes[new_node_index] = Json112Node{
+					node_typ:.boolean
+					node_val:ConvertedValue{
+						bool_val:val
+					}
+				}
+			}else{
+				return error('Expect a value of type bool.')
+			}
+		}
+		.number {
+			if val is f64{
+				J.all_nodes[new_node_index] = Json112Node{
+					node_typ:.number
+					node_val:ConvertedValue{
+						number_val:val
+					}
+				}
+			}else{
+				return error('Expect a value of type f64.')
+			}
+		}
+		.string {
+			if val is string{
+				J.all_nodes[new_node_index] = Json112Node{
+					node_typ:.string
+					node_val:ConvertedValue{
+						string_val:val
+					}
+				}
+			}else{
+				return error('Expect a value of type string.')
+			}
+		}
+		.array {
+			if val is string{
+				j_obj := decode(val)?
+
+				if j_obj.child_node.len != 1{
+					return error('An append value of an array type can have only one key.')
+				} 
+
+				child_node_index := '["${j_obj.child_node[0]}"]'
+				child_json_node := j_obj.all_nodes[child_node_index]
+
+				if child_json_node.node_typ != .array{
+					return error('Expect a value of type array.')
+				}
+
+				for k,v in j_obj.all_nodes{
+					J.all_nodes[new_node_index + k[child_node_index.len..k.len]] = v
+				}
+
+				J.byte_len += j_obj.byte_len
+			}else{
+				return error('Expect a value of type string.')
+			}				
+		}
+		else {
+			if val is string{
+				j_obj := decode(val)?
+				J.all_nodes[new_node_index] = Json112Node{
+					node_typ:.object
+					child_node:j_obj.child_node
+				}
+
+				for k,v in j_obj.all_nodes{
+					J.all_nodes[new_node_index + k] = v
+				}
+
+				J.byte_len += j_obj.byte_len
+			}else{
+				return error('Expect a value of type string.')
+			}
+		}
+	}
+	return max_index
 }
 
 //改变已有节点的值

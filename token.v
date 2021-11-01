@@ -12,15 +12,6 @@ enum TokenValType{
 	bool
 }
 
-//经过扫描器后转换后的实际值 主要是number和string中的转义处理
-union ConvertedValue{
-mut:
-	skip int
-	string_val string
-	bool_val bool
-	number_val f64
-}
-
 struct Token{
 	//token种类
 	kind Kind [required]
